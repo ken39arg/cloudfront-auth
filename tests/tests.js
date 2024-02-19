@@ -43,7 +43,7 @@ const server = http.createServer();
 server.on('request', function(req, res){
   const querystring = new URLSearchParams(url.parse(req.url).query);
   res.writeHead(200, {'Content-Type': 'text/html'});
-  if (querystring.get('code') != undefined) {
+  if (querystring.has('code')) {
     // Write simple HTML page with copy button for code
     const codeHtml = '<html>' +
     '    <head>' +
@@ -57,7 +57,7 @@ server.on('request', function(req, res){
     '        </script>' +
     '    </head>' +
     '    <body>' +
-    '        <input type="text" value="' + querystring.code + '" id="codeField">' +
+    '        <input type="text" value="' + querystring.get('code') + '" id="codeField">' +
     '        <button onclick="copyCode()">Copy code</button>' +
     '    </body>'
     '</html>';
