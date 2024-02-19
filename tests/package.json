@@ -14,7 +14,7 @@
     "generate-password": "^1.4.1",
     "http": "0.0.0",
     "json-beautify": "^1.0.1",
-    "ngrok": "^2.3.0",
+    "ngrok": "^4.3.3",
     "opn": "^5.2.0",
     "prompt": "^1.0.0",
     "querystring": "^0.2.0",
