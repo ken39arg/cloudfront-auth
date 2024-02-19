@@ -17,7 +17,6 @@
     "jsonwebtoken": "^9.0.2",
     "jwk-to-pem": "^1.2.6",
     "nonce": "^1.0.4",
-    "querystring": "^0.2.0",
     "url": "^0.11.0"
   }
 }
