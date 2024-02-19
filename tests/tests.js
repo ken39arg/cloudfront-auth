@@ -4,14 +4,12 @@ const prompt = require('prompt');
 const colors = require('colors/safe');
 const http = require('http');
 const url = require('url');
-const qs = require('querystring');
 const shell = require('shelljs');
-var beautify = require('json-beautify');
-var ngrok = require('ngrok');
-var dateFormat = require('dateformat');
-var AWS = require('aws-sdk');
-var logName = dateFormat(Date.now(), "mm-dd-yyyy-hh:MM:ss");
-let server;
+const beautify = require('json-beautify');
+const ngrok = require('ngrok');
+const dateFormat = require('dateformat');
+const AWS = require('aws-sdk');
+const logName = dateFormat(Date.now(), "mm-dd-yyyy-hh:MM:ss");
 
 // Check for distribution argument
 const DISTRIBUTION = process.argv.slice(2)[0];
@@ -29,8 +27,8 @@ if(!fs.existsSync("distributions/" + DISTRIBUTION + "/config-test.json")) {
 }
 
 // Load configs
-var config = JSON.parse(fs.readFileSync("distributions/" + DISTRIBUTION + "/config.json", 'utf8'));
-var testConfig = JSON.parse(fs.readFileSync("distributions/" + DISTRIBUTION + "/config-test.json"));
+const config = JSON.parse(fs.readFileSync("distributions/" + DISTRIBUTION + "/config.json", 'utf8'));
+const testConfig = JSON.parse(fs.readFileSync("distributions/" + DISTRIBUTION + "/config-test.json"));
 
 // Update AWS config
 AWS.config.update({
@@ -38,16 +36,16 @@ AWS.config.update({
   secretAccessKey: testConfig.aws.secretAccessKey,
   region: testConfig.aws.region
 });
-var lambda = new AWS.Lambda();
+const lambda = new AWS.Lambda();
 
 // Start local server
-server = http.createServer();
+const server = http.createServer();
 server.on('request', function(req, res){
-  var querystring = qs.parse(url.parse(req.url).query);
+  const querystring = new URLSearchParams(url.parse(req.url).query);
   res.writeHead(200, {'Content-Type': 'text/html'});
-  if (querystring.code != undefined) {
+  if (querystring.has('code')) {
     // Write simple HTML page with copy button for code
-    var codeHtml = '<html>' +
+    const codeHtml = '<html>' +
     '    <head>' +
     '        <title>cloudfront-auth testing</title>' +
     '        <script>' +
@@ -59,7 +57,7 @@ server.on('request', function(req, res){
     '        </script>' +
     '    </head>' +
     '    <body>' +
-    '        <input type="text" value="' + querystring.code + '" id="codeField">' +
+    '        <input type="text" value="' + querystring.get('code') + '" id="codeField">' +
     '        <button onclick="copyCode()">Copy code</button>' +
     '    </body>'
     '</html>';
@@ -73,12 +71,12 @@ server.listen(testConfig.port);
 switch(testConfig.auth) {
   case("y"):
     // Generate password for ngrok
-    var generator = require('generate-password');
-    var username = generator.generate({
+    const generator = require('generate-password');
+    const username = generator.generate({
       length: 10,
       numbers: true
     });
-    var password = generator.generate({
+    const password = generator.generate({
       length: 10,
       numbers: true
     });
@@ -119,7 +117,7 @@ function setupRedirect(url, lambdaFunction) {
     }
   }, function (err, result) {
     // Setup initial lambda request
-    var params = {
+    const params = {
       FunctionName: lambdaFunction,
       Payload: initialRequestPayload(url),
       LogType: "Tail"
@@ -135,7 +133,7 @@ function setupRedirect(url, lambdaFunction) {
       } else {
         // Update log
         fs.appendFileSync('distributions/' + DISTRIBUTION + '/logs/' + logName + '.log', "\n*/ Initial Request Response /*\nStatus Code: " + data.StatusCode + "\nExecuted Version: " + data.ExecutedVersion + "\nLog Result:\n" + new Buffer(data.LogResult, 'base64').toString('ascii') + "\nPayload:\n" + beautify(JSON.parse(data.Payload), null, 2, 80));
-        var payload = JSON.parse(data.Payload);
+        const payload = JSON.parse(data.Payload);
         console.log(payload.headers.location[0].value);
         opn(payload.headers.location[0].value);
 
@@ -151,7 +149,7 @@ function setupRedirect(url, lambdaFunction) {
           }
         }, function (err, result) {
           // Setup callback lambda request
-          var params = {
+          const params = {
             FunctionName: lambdaFunction,
             Payload: callbackPayload(url, result.code),
             LogType: "Tail"
@@ -169,7 +167,7 @@ function setupRedirect(url, lambdaFunction) {
               fs.appendFileSync('distributions/' + DISTRIBUTION + '/logs/' + logName + '.log', "\n*/ Callback Response /*\nStatus Code: " + data.StatusCode + "\nExecuted Version: " + data.ExecutedVersion + "\nLog Result:\n" + new Buffer(data.LogResult, 'base64').toString('ascii') + "\nPayload:\n" + beautify(JSON.parse(data.Payload), null, 2, 80));
 
               // Setup token lambda request
-              var params = {
+              const params = {
                 FunctionName: lambdaFunction,
                 Payload: tokenRequestPayload(url, JSON.parse(data.Payload).headers["set-cookie"][0].value),
                 LogType: "Tail"
@@ -204,7 +202,7 @@ function setupRedirect(url, lambdaFunction) {
 
 /** Lambda test payloads **/
 function initialRequestPayload(url) {
-  var payload = {
+  const payload = {
     "Records": [
       {
         "cf": {
@@ -240,7 +238,7 @@ function initialRequestPayload(url) {
 }
 
 function callbackPayload(url, code) {
-  var payload = {
+  const payload = {
     "Records": [
       {
         "cf": {
@@ -276,7 +274,7 @@ function callbackPayload(url, code) {
 }
 
 function tokenRequestPayload(url, cookie) {
-  var payload = {
+  const payload = {
     "Records": [
       {
         "cf": {

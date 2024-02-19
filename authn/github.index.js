@@ -1,11 +1,10 @@
-const qs = require('querystring');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const cookie = require('cookie');
-const jwkToPem = require('jwk-to-pem');
+const _jwkToPem = require('jwk-to-pem');
 const auth = require('./auth.js');
 const axios = require('axios');
-var config;
+let config;
 
 exports.handler = (event, context, callback) => {
   if (typeof config == 'undefined') {
@@ -18,7 +17,7 @@ function mainProcess(event, context, callback) {
   // Get request, request headers, and querystring dictionary
   const request = event.Records[0].cf.request;
   const headers = request.headers;
-  const queryDict = qs.parse(request.querystring);
+  const queryParams = new URLSearchParams(request.querystring);
   if (event.Records[0].cf.config.hasOwnProperty('test')) {
     config.AUTH_REQUEST.redirect_uri = event.Records[0].cf.config.test + config.CALLBACK_PATH;
     config.TOKEN_REQUEST.redirect_uri = event.Records[0].cf.config.test + config.CALLBACK_PATH;
@@ -26,23 +25,23 @@ function mainProcess(event, context, callback) {
   if (request.uri.startsWith(config.CALLBACK_PATH)) {
     console.log("Callback from GitHub received");
     /** Verify code is in querystring */
-    if (!queryDict.code || !queryDict.state) {
+    if (!queryParams.get('code') || !queryParams.get('state')) {
       unauthorized("No code or state found.", callback);
     }
-    config.TOKEN_REQUEST.code = queryDict.code;
-    config.TOKEN_REQUEST.state = queryDict.state;
+    config.TOKEN_REQUEST.code = queryParams.get('code');
+    config.TOKEN_REQUEST.state = queryParams.get('state');
     /** Exchange code for authorization token */
-    const postData = qs.stringify(config.TOKEN_REQUEST);
+    const postData = new URLSearchParams(config.TOKEN_REQUEST).toString();
     console.log("Requesting access token.");
     axios.post(config.TOKEN_ENDPOINT, postData)
       .then(function(response) {
         console.log(response);
-        var responseQueryString = qs.parse(response.data);
+        const responseQueryParams = new URLSearchParams(response.data);
         /** Get authenticated user's login */
-        if (responseQueryString.error) {
-          internalServerError("Error while getting token: " + responseQueryString.error_description, callback);
+        if (responseQueryParams.get('error')) {
+          internalServerError("Error while getting token: " + responseQueryParams.get('error_description'), callback);
         } else {
-          const authorization = responseQueryString.token_type + ' ' + responseQueryString.access_token;
+          const authorization = responseQueryParams.get('token_type') + ' ' + responseQueryParams.get('access_token');
           axios.get('https://api.github.com/user', { headers: {'Authorization': authorization}})
             .then(function(response) {
               console.log(response);
@@ -133,7 +132,7 @@ function mainProcess(event, context, callback) {
 function redirect(request, headers, callback) {
   config.AUTH_REQUEST.state = request.uri;
   // Redirect to Authorization Server
-  var querystring = qs.stringify(config.AUTH_REQUEST);
+  var querystring = new URLSearchParams(config.AUTH_REQUEST).toString();
 
   const response = {
     status: "302",
