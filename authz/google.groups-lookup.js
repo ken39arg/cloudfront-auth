@@ -1,12 +1,11 @@
 const fs = require('fs');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const qs = require('querystring');
 
 function isAuthorized(decoded, request, callback, unauthorized, internalServerError, config) {
-  var googleAuthz = JSON.parse(fs.readFileSync('./google-authz.json'));
-  var groupChecks = 0;
-  var token = jwt.sign({
+  const googleAuthz = JSON.parse(fs.readFileSync('./google-authz.json'));
+  let groupChecks = 0;
+  const token = jwt.sign({
     scope: 'https://www.googleapis.com/auth/admin.directory.group.member.readonly'
   },
   googleAuthz.private_key, {
@@ -16,15 +15,15 @@ function isAuthorized(decoded, request, callback, unauthorized, internalServerEr
     subject: config.SERVICE_ACCOUNT_EMAIL,
     algorithm: 'RS256'
   });
-  const postData = qs.stringify({
+  const postData = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
     assertion: token
-  });
+  }).toString();
   axios.post(googleAuthz.token_uri, postData)
     .then(function(response) {
-      for (var i = 0; i < googleAuthz.cloudfront_authz_groups.length; i++) {
-        var authorization = response.data.token_type + ' ' + response.data.access_token;
-        var membershipGet = 'https://www.googleapis.com/admin/directory/v1/groups/' + googleAuthz.cloudfront_authz_groups[i] + '/hasMember/' + decoded.sub;
+      for (let i = 0; i < googleAuthz.cloudfront_authz_groups.length; i++) {
+        const authorization = response.data.token_type + ' ' + response.data.access_token;
+        const membershipGet = 'https://www.googleapis.com/admin/directory/v1/groups/' + googleAuthz.cloudfront_authz_groups[i] + '/hasMember/' + decoded.sub;
         console.log(membershipGet + ': ' + authorization);
         axios.get(membershipGet, { headers: {'Authorization': authorization}})
           .then(function(response) {

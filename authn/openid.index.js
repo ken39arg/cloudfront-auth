@@ -1,4 +1,3 @@
-const qs = require('querystring');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const cookie = require('cookie');
@@ -6,9 +5,9 @@ const jwkToPem = require('jwk-to-pem');
 const auth = require('./auth.js');
 const nonce = require('./nonce.js');
 const axios = require('axios');
-var discoveryDocument;
-var jwks;
-var config;
+let discoveryDocument;
+let jwks;
+let config;
 
 exports.handler = (event, context, callback) => {
   if (typeof jwks == 'undefined' || typeof discoveryDocument == 'undefined' || typeof config == 'undefined') {
@@ -57,7 +56,7 @@ function mainProcess(event, context, callback) {
   // Get request, request headers, and querystring dictionary
   const request = event.Records[0].cf.request;
   const headers = request.headers;
-  const queryDict = qs.parse(request.querystring);
+  const queryParams = new URLSearchParams(request.querystring);
   if (event.Records[0].cf.config.hasOwnProperty('test')) {
     config.AUTH_REQUEST.redirect_uri = event.Records[0].cf.config.test + config.CALLBACK_PATH;
     config.TOKEN_REQUEST.redirect_uri = event.Records[0].cf.config.test + config.CALLBACK_PATH;
@@ -66,7 +65,7 @@ function mainProcess(event, context, callback) {
     console.log("Callback from OIDC provider received");
 
     // Check for error response (https://tools.ietf.org/html/rfc6749#section-4.2.2.1)
-    if (queryDict.error) {
+    if (queryParams.has('error')) {
       const errors = {
         "invalid_request": "Invalid Request",
         "unauthorized_client": "Unauthorized Client",
@@ -77,26 +76,26 @@ function mainProcess(event, context, callback) {
         "temporarily_unavailable": "Temporarily Unavailable"
       }
 
-      var error = '';
-      var error_description = '';
-      var error_uri = '';
+      let error = '';
+      let error_description = '';
+      let error_uri = '';
 
-      if (errors[queryDict.error] != null) {
+      if (errors[queryParams.get('error')] != null) {
         // Replace with corresponding value
-        error = errors[queryDict.error];
+        error = errors[queryParams.get('error')];
       } else {
         // Replace with passed in value
-        error = queryDict.error;
+        error = queryParams.get('error');
       }
 
-      if (queryDict.error_description != null) {
-        error_description = queryDict.error_description;
+      if (queryParams.has('error_description')) {
+        error_description = queryParams.get('error_description');
       } else {
         error_description = '';
       }
 
-      if (queryDict.error_uri != null) {
-        error_uri = queryDict.error_uri;
+      if (queryParams.has('error_uri')) {
+        error_uri = queryParams.get('error_uri');
       } else {
         error_uri = '';
       }
@@ -105,13 +104,13 @@ function mainProcess(event, context, callback) {
     }
 
     // Verify code is in querystring
-    if (!queryDict.code) {
+    if (!queryParams.has('code')) {
       unauthorized('No Code Found', '', '', callback);
     }
-    config.TOKEN_REQUEST.code = queryDict.code;
+    config.TOKEN_REQUEST.code = queryParams.get('code');
 
     // Exchange code for authorization token
-    const postData = qs.stringify(config.TOKEN_REQUEST);
+    const postData = new URLSearchParams(config.TOKEN_REQUEST).toString();
     console.log("Requesting access token.");
     axios.post(discoveryDocument.token_endpoint, postData)
       .then(function(response) {
@@ -122,8 +121,8 @@ function mainProcess(event, context, callback) {
           console.log("Searching for JWK from discovery document");
 
           // Search for correct JWK from discovery document and create PEM
-          var pem = "";
-          for (var i = 0; i < jwks.keys.length; i++) {
+          let pem = "";
+          for (let i = 0; i < jwks.keys.length; i++) {
             if (decodedData.header.kid === jwks.keys[i].kid) {
               pem = jwkToPem(jwks.keys[i]);
             }
@@ -163,7 +162,7 @@ function mainProcess(event, context, callback) {
                     "location" : [
                       {
                         "key": "Location",
-                        "value": event.Records[0].cf.config.hasOwnProperty('test') ? (config.AUTH_REQUEST.redirect_uri + queryDict.state) : queryDict.state
+                        "value": event.Records[0].cf.config.hasOwnProperty('test') ? (config.AUTH_REQUEST.redirect_uri + queryParams.get('state')) : queryParams.get('state')
                       }
                     ],
                     "set-cookie" : [
@@ -245,7 +244,7 @@ function redirect(request, headers, callback) {
   config.AUTH_REQUEST.state = request.uri;
 
   // Redirect to Authorization Server
-  var querystring = qs.stringify(config.AUTH_REQUEST);
+  var querystring = new URLSearchParams(config.AUTH_REQUEST).toString();
 
   const response = {
     "status": "302",
